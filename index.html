@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YTDrop — Descargador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #222222;
+      --accent: #e8ff47;
+      --accent2: #ff6b35;
+      --text: #f0f0f0;
+      --muted: #666666;
+      --error: #ff4444;
+      --success: #47ff8a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(232,255,71,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(232,255,71,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Glow blob */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(232,255,71,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 760px;
+      padding: 48px 24px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--accent);
+    }
+
+    .logo span { color: var(--text); }
+
+    .badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      background: var(--border);
+      border: 1px solid #333;
+      padding: 4px 10px;
+      border-radius: 100px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    main {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 760px;
+      padding: 64px 24px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.8rem, 7vw, 5rem);
+      font-weight: 800;
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      color: var(--text);
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--accent);
+      display: block;
+    }
+
+    .hero p {
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 400;
+      max-width: 480px;
+      line-height: 1.6;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Input card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .url-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .url-input::placeholder { color: var(--muted); }
+
+    .url-input:focus {
+      border-color: var(--accent);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 24px;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover { transform: translateY(-1px); opacity: 0.92; }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* Options */
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .option-group label {
+      display: block;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .option-group select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.82rem;
+      color: var(--text);
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      transition: border-color 0.2s;
+    }
+
+    .option-group select:focus { border-color: var(--accent); }
+
+    /* Mode tabs */
+    .mode-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-tab.active {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .mode-tab:hover:not(.active) { color: var(--text); }
+
+    /* Status area */
+    #status {
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.82rem;
+      transition: all 0.3s;
+      display: none;
+    }
+
+    #status.visible { display: flex; }
+    #status.loading { border-color: var(--border); color: var(--muted); background: var(--bg); }
+    #status.error { border-color: var(--error); color: var(--error); background: rgba(255,68,68,0.05); }
+    #status.success { border-color: var(--success); color: var(--success); background: rgba(71,255,138,0.05); }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid #333;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Download button result */
+    #download-area { display: none; }
+    #download-area.visible { display: block; }
+
+    .download-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 20px 24px;
+      background: linear-gradient(135deg, rgba(232,255,71,0.1), rgba(232,255,71,0.05));
+      border: 1px solid rgba(232,255,71,0.3);
+      border-radius: 12px;
+      color: var(--accent);
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      animation: slideUp 0.4s ease;
+    }
+
+    .download-btn:hover {
+      background: linear-gradient(135deg, rgba(232,255,71,0.18), rgba(232,255,71,0.08));
+      border-color: rgba(232,255,71,0.6);
+      transform: translateY(-2px);
+    }
+
+    .download-btn .filename {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-weight: 400;
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 400px;
+    }
+
+    .download-btn .left { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+
+    .dl-icon { font-size: 1.4rem; flex-shrink: 0; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Footer */
+    footer {
+      position: relative;
+      z-index: 1;
+      margin-top: auto;
+      padding: 32px 24px;
+      text-align: center;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    footer a { color: var(--muted); text-decoration: underline; }
+
+    @media (max-width: 560px) {
+      .options-grid { grid-template-columns: 1fr; }
+      .input-row { flex-direction: column; }
+      .hero h1 { font-size: 2.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">YT<span>Drop</span></div>
+  <div class="badge">powered by cobalt</div>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>Descarga<em>sin dramas.</em></h1>
+    <p>Pega un link de YouTube y descarga el video o solo el audio en el formato que quieras. Rápido, gratis, sin registro.</p>
+  </div>
+
+  <div class="card">
+
+    <!-- Mode tabs -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="auto" onclick="setMode(this)">🎬 Video + Audio</button>
+      <button class="mode-tab" data-mode="audio" onclick="setMode(this)">🎵 Solo Audio</button>
+      <button class="mode-tab" data-mode="mute" onclick="setMode(this)">🔇 Video sin audio</button>
+    </div>
+
+    <!-- URL input -->
+    <div class="input-row">
+      <input
+        type="url"
+        class="url-input"
+        id="url-input"
+        placeholder="https://www.youtube.com/watch?v=..."
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button class="btn-primary" id="dl-btn" onclick="startDownload()">Descargar</button>
+    </div>
+
+    <!-- Options -->
+    <div class="options-grid" id="video-options">
+      <div class="option-group">
+        <label>Calidad de video</label>
+        <select id="quality">
+          <option value="max">Máxima calidad</option>
+          <option value="1080" selected>1080p</option>
+          <option value="720">720p</option>
+          <option value="480">480p</option>
+          <option value="360">360p</option>
+          <option value="240">240p</option>
+          <option value="144">144p</option>
+        </select>
+      </div>
+      <div class="option-group">
+        <label>Formato de video</label>
+        <select id="video-format">
+          <option value="mp4" selected>MP4</option>
+          <option value="webm">WebM</option>
+          <option value="mkv">MKV</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="options-grid" id="audio-options" style="display:none">
+      <div class="option-group">
+        <label>Formato de audio</label>
+        <select id="audio-format">
+          <option value="mp3" selected>MP3</option>
+          <option value="ogg">OGG</option>
+          <option value="opus">Opus</option>
+          <option value="wav">WAV</option>
+          <option value="best">Mejor calidad</option>
+        </select>
+      </div>
+      <div class="option-group">
+        <label>Bitrate</label>
+        <select id="bitrate">
+          <option value="320">320 kbps</option>
+          <option value="256">256 kbps</option>
+          <option value="128" selected>128 kbps</option>
+          <option value="96">96 kbps</option>
+          <option value="64">64 kbps</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div id="status"></div>
+
+    <!-- Download area -->
+    <div id="download-area"></div>
+
+  </div>
+</main>
+
+<footer>
+  YTDrop usa la API de <a href="https://cobalt.tools" target="_blank">cobalt.tools</a> — no almacena ni cachea ningún archivo.<br/>
+  Úsalo solo para contenido con licencia libre o de tu autoría. Respeta los derechos de autor.
+</footer>
+
+<script>
+  const COBALT_API = 'https://api.cobalt.tools';
+
+  let currentMode = 'auto';
+
+  function setMode(btn) {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    currentMode = btn.dataset.mode;
+
+    const isAudio = currentMode === 'audio';
+    document.getElementById('audio-options').style.display = isAudio ? 'grid' : 'none';
+    document.getElementById('video-options').style.display = isAudio ? 'none' : 'grid';
+
+    clearResult();
+  }
+
+  function showStatus(type, message) {
+    const el = document.getElementById('status');
+    el.className = 'visible ' + type;
+    el.innerHTML = type === 'loading'
+      ? `<div class="spinner"></div><span>${message}</span>`
+      : `<span>${message}</span>`;
+  }
+
+  function hideStatus() {
+    document.getElementById('status').className = '';
+  }
+
+  function clearResult() {
+    document.getElementById('download-area').className = '';
+    document.getElementById('download-area').innerHTML = '';
+    hideStatus();
+  }
+
+  function showDownload(url, filename) {
+    const area = document.getElementById('download-area');
+    area.className = 'visible';
+    area.innerHTML = `
+      <a class="download-btn" href="${url}" download="${filename}" target="_blank">
+        <div class="left">
+          <span>✓ Listo — clic para descargar</span>
+          <span class="filename">${filename}</span>
+        </div>
+        <span class="dl-icon">↓</span>
+      </a>
+    `;
+  }
+
+  async function startDownload() {
+    const url = document.getElementById('url-input').value.trim();
+    if (!url) {
+      showStatus('error', '⚠ Pega un link de YouTube primero.');
+      return;
+    }
+
+    if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+      showStatus('error', '⚠ Solo se aceptan links de YouTube por ahora.');
+      return;
+    }
+
+    clearResult();
+    showStatus('loading', 'Procesando enlace…');
+    document.getElementById('dl-btn').disabled = true;
+
+    const body = {
+      url,
+      downloadMode: currentMode,
+      filenameStyle: 'pretty',
+    };
+
+    if (currentMode === 'audio') {
+      body.audioFormat = document.getElementById('audio-format').value;
+      body.audioBitrate = document.getElementById('bitrate').value;
+    } else {
+      body.videoQuality = document.getElementById('quality').value;
+      body.youtubeVideoContainer = document.getElementById('video-format').value;
+      body.youtubeVideoCodec = 'h264';
+    }
+
+    try {
+      const res = await fetch(`${COBALT_API}/`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (data.status === 'error') {
+        const msg = data.error?.code || 'Error desconocido';
+        showStatus('error', `✗ ${friendlyError(msg)}`);
+        return;
+      }
+
+      if (data.status === 'tunnel' || data.status === 'redirect') {
+        hideStatus();
+        showDownload(data.url, data.filename || 'descarga');
+        return;
+      }
+
+      if (data.status === 'local-processing') {
+        // For local-processing, we can still provide the tunnel URL
+        if (data.tunnel && data.tunnel.length > 0) {
+          hideStatus();
+          showDownload(data.tunnel[0], data.output?.filename || 'descarga');
+        } else {
+          showStatus('error', '✗ Este video requiere procesamiento local no soportado en esta versión.');
+        }
+        return;
+      }
+
+      showStatus('error', `✗ Respuesta inesperada: ${data.status}`);
+
+    } catch (err) {
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        showStatus('error', '✗ No se pudo conectar a la API. Puede ser un bloqueo CORS — intenta desde un navegador distinto o usa un proxy.');
+      } else {
+        showStatus('error', `✗ Error: ${err.message}`);
+      }
+    } finally {
+      document.getElementById('dl-btn').disabled = false;
+    }
+  }
+
+  function friendlyError(code) {
+    const map = {
+      'error.api.unreachable': 'La API no está disponible ahora mismo.',
+      'error.api.timed_out': 'Tiempo de espera agotado. Intenta de nuevo.',
+      'error.api.rate_exceeded': 'Demasiadas solicitudes. Espera un momento.',
+      'error.api.link.invalid': 'El link no es válido.',
+      'error.api.link.unsupported': 'Este link no está soportado.',
+      'error.api.content.too_long': 'El video es demasiado largo.',
+      'error.api.youtube.login': 'YouTube está bloqueando la descarga ahora mismo.',
+      'error.api.youtube.age': 'El video tiene restricción de edad.',
+      'error.api.youtube.unavailable': 'El video no está disponible.',
+    };
+    return map[code] || code;
+  }
+
+  // Enter key support
+  document.getElementById('url-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') startDownload();
+  });
+
+  // Paste and go
+  document.getElementById('url-input').addEventListener('paste', () => {
+    clearResult();
+  });
+</script>
+
+</body>
+</html>
