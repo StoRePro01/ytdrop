@@ -1,0 +1,2 @@
+[start]
+cmd = "cp /app/cookies.json /cookies.json && node src/cobalt.js"
